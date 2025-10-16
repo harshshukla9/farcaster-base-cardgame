@@ -5,7 +5,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadCont
 import { base } from 'wagmi/chains'
 import { createPublicClient, http } from 'viem'
 import contractConfig from '@/lib/contract'
-
+//contract score hook
 interface ContractScoreState {
   isSubmitting: boolean
   isSuccess: boolean
