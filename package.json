@@ -14,15 +14,15 @@
     "@farcaster/miniapp-node": "^0.1.6",
     "@farcaster/miniapp-sdk": "^0.2.0",
     "@farcaster/miniapp-wagmi-connector": "^1.1.0",
-    "@reown/appkit": "^1.5.0",
-    "@reown/appkit-adapter-wagmi": "^1.5.0",
+    "@reown/appkit": "^1.8.10",
+    "@reown/appkit-adapter-wagmi": "^1.8.10",
     "@tanstack/react-query": "^5.64.2",
     "@upstash/redis": "^1.35.1",
     "next": "14.2.6",
     "react": "^18",
     "react-dom": "^18",
     "viem": "^2.22.22",
-    "wagmi": "^2.14.12",
+    "wagmi": "^2.17.5",
     "zod": "^3.24.1",
     "styled-components": "^6.1.0"
   },
@@ -43,6 +43,9 @@
     ],
     "onlyBuiltDependencies": [
       "@biomejs/biome"
-    ]
+    ],
+    "overrides": {
+      "viem": "2.38.3"
+    }
   }
 }
