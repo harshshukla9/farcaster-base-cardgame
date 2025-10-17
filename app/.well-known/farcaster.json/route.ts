@@ -7,7 +7,7 @@ export async function GET() {
       "name": "Base Stack",
       "version": "1",
       "iconUrl": "https://farcaster-base-cardgame-gilt.vercel.app/icon.png",
-      "homeUrl": "https://farcaster-base-cardgame-gilt.vercel.app",
+      "homeUrl": "https://farcaster-base-cardgame-gilt.vercel.app/",
       "imageUrl": "https://farcaster-base-cardgame-gilt.vercel.app/image.png",
       "splashImageUrl": "https://farcaster-base-cardgame-gilt.vercel.app/splash.png",
       "splashBackgroundColor": "#ffffff",
