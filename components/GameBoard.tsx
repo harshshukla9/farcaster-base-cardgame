@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef, useCallback } from 'react'
 import styled from 'styled-components'
 import { Tile } from '../types/game'
 
@@ -25,6 +26,7 @@ const TileElement = styled.div<{
   offsetY: number; 
   layerOffset: number;
   isFree: boolean;
+  isProcessing?: boolean;
 }>`
   position: absolute;
   width: 55px;
@@ -35,11 +37,14 @@ const TileElement = styled.div<{
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: ${props => props.isFree ? 'pointer' : 'default'};
+  cursor: ${props => props.isFree && !props.isProcessing ? 'pointer' : 'default'};
   transform-style: preserve-3d;
   box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
   user-select: none;
-  opacity: ${props => props.isFree ? '1' : '0.6'};
+  opacity: ${props => {
+    if (props.isProcessing) return '0.7'
+    return props.isFree ? '1' : '0.6'
+  }};
   left: ${props => props.x * props.xSpacing + props.offsetX}px;
   top: ${props => props.y * props.ySpacing + props.offsetY + props.z * props.layerOffset}px;
   transform: translateZ(${props => props.z * props.layerOffset}px);
@@ -47,11 +52,17 @@ const TileElement = styled.div<{
   transition: all 0.2s ease;
 
   &:hover {
-    ${props => props.isFree && `
+    ${props => props.isFree && !props.isProcessing && `
       transform: translateY(-3px) scale(1.1) translateZ(${props.z * props.layerOffset}px);
       border-color: #0052FF;
       background: #fff;
       box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4), 0 0 15px rgba(184, 31, 36, 0.3);
+    `}
+  }
+
+  &:active {
+    ${props => props.isFree && !props.isProcessing && `
+      transform: translateY(-1px) scale(1.05) translateZ(${props.z * props.layerOffset}px);
     `}
   }
 
@@ -72,6 +83,43 @@ interface GameBoardProps {
 }
 
 export default function GameBoard({ tiles, onTileClick }: GameBoardProps) {
+  const lastClickTimeRef = useRef<number>(0)
+  const lastClickedTileRef = useRef<number | null>(null)
+  const processingTilesRef = useRef<Set<number>>(new Set())
+
+  const handleTileClick = useCallback((tile: Tile) => {
+    const now = Date.now()
+    const timeSinceLastClick = now - lastClickTimeRef.current
+    const isSameTile = lastClickedTileRef.current === tile.id
+    const isProcessing = processingTilesRef.current.has(tile.id)
+    
+    // Prevent rapid clicks (less than 200ms apart), clicking the same tile, or processing tiles
+    if (timeSinceLastClick < 200 || isSameTile || isProcessing) {
+      return
+    }
+    
+    // Only proceed if tile is free
+    if (!tile.free) {
+      return
+    }
+    
+    // Mark tile as processing
+    processingTilesRef.current.add(tile.id)
+    
+    // Update refs
+    lastClickTimeRef.current = now
+    lastClickedTileRef.current = tile.id
+    
+    // Call the actual click handler
+    onTileClick(tile)
+    
+    // Clear processing state after a delay
+    setTimeout(() => {
+      processingTilesRef.current.delete(tile.id)
+      lastClickedTileRef.current = null
+    }, 300)
+  }, [onTileClick])
+
   return (
     <GameCanvas>
       {tiles.map((tile) => (
@@ -86,7 +134,8 @@ export default function GameBoard({ tiles, onTileClick }: GameBoardProps) {
           offsetY={tile.offsetY}
           layerOffset={tile.layerOffset}
           isFree={tile.free}
-          onClick={() => tile.free && onTileClick(tile)}
+          isProcessing={processingTilesRef.current.has(tile.id)}
+          onClick={() => handleTileClick(tile)}
         >
           <img src={tile.imageUrl} alt="Card" />
         </TileElement>

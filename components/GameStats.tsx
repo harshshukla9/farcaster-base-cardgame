@@ -3,45 +3,55 @@
 import styled from 'styled-components'
 
 const StatsContainer = styled.div`
-  padding: 10px 20px;
+  padding: 12px 20px;
   color: white;
   width: 100%;
   background: #0b0c1a;
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  gap: 0.7rem;
+  gap: 1rem;
   border-bottom: 3px solid #0052FF;
+  position: relative;
 `
 
 const LivesContainer = styled.div`
   display: flex;
-  gap: 2px;
+  gap: 4px;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 `
 
 const Heart = styled.span<{ active: boolean }>`
-  font-size: 28px;
-  color: ${props => props.active ? '#b81f24' : '#444'};
+  font-size: 24px;
+  color: ${props => props.active ? '#ff4444' : '#444'};
+  text-shadow: ${props => props.active ? '0 0 8px rgba(255, 68, 68, 0.6)' : 'none'};
+  transition: all 0.2s ease;
 `
 
 const TimerContainer = styled.div`
   position: absolute;
-  top: 10px;
+  top: 60px;
   right: 10px;
   background: #0052FF;
   color: white;
-  padding: 8px 14px;
+  padding: 6px 12px;
   border: 3px solid #0b0c1a;
-  border-radius: 15px;
-  font-size: 18px;
+  border-radius: 12px;
+  font-size: 16px;
   font-weight: bold;
   text-shadow: 2px 2px #0b0c1a;
   box-shadow: 4px 4px 0 #000;
-  z-index: 100;
+  z-index: 99;
 `
 
 const StatItem = styled.div`
   font-weight: bold;
+  font-size: 14px;
+  text-shadow: 1px 1px #000;
 `
 
 interface GameStatsProps {

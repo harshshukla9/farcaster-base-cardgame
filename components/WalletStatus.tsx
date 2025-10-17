@@ -6,17 +6,18 @@ import styled from 'styled-components'
 
 const StatusContainer = styled.div`
   position: absolute;
-  top: 10px;
+  top: 60px;
   left: 10px;
   background: rgba(11, 12, 26, 0.9);
   border: 2px solid #0052FF;
   border-radius: 10px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   backdrop-filter: blur(5px);
   z-index: 100;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  max-width: 200px;
 `
 
 const StatusDot = styled.div<{ connected: boolean }>`
@@ -29,14 +30,14 @@ const StatusDot = styled.div<{ connected: boolean }>`
 
 const StatusText = styled.span`
   color: white;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: bold;
   font-family: "Venite Adoremus", "Pixelify Sans", system-ui, monospace;
 `
 
 const AddressText = styled.span`
   color: #0052FF;
-  font-size: 11px;
+  font-size: 10px;
   font-family: "Venite Adoremus", "Pixelify Sans", system-ui, monospace;
 `
 

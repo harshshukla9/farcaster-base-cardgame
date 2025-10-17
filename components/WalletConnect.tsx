@@ -9,23 +9,23 @@ const WalletContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 15px;
-  padding: 20px;
+  gap: 12px;
+  padding: 16px;
   background: rgba(11, 12, 26, 0.9);
   border: 3px solid #0052FF;
-  border-radius: 15px;
-  box-shadow: 0 0 20px rgba(0, 82, 255, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 0 18px rgba(0, 82, 255, 0.3);
   backdrop-filter: blur(10px);
-  max-width: 400px;
-  margin: 20px auto;
+  max-width: 380px;
+  margin: 12px auto;
 `
 
 const ConnectButton = styled.button`
   background: #0052FF;
   color: white;
   border: 3px solid #0b0c1a;
-  border-radius: 12px;
-  padding: 12px 24px;
+  border-radius: 10px;
+  padding: 10px 20px;
   font-size: 16px;
   font-weight: bold;
   cursor: pointer;
@@ -38,7 +38,7 @@ const ConnectButton = styled.button`
   &:hover {
     background: #0066FF;
     transform: translateY(-2px);
-    box-shadow: 6px 6px 0 #000, 0 0 15px rgba(0, 82, 255, 0.5);
+    box-shadow: 5px 5px 0 #000, 0 0 12px rgba(0, 82, 255, 0.5);
   }
 
   &:active {
@@ -94,8 +94,8 @@ const WalletInfo = styled.div`
 const Title = styled.h3`
   color: #0052FF;
   font-family: "Venite Adoremus", "Bangers", cursive;
-  font-size: 24px;
-  margin: 0 0 15px 0;
+  font-size: 20px;
+  margin: 0 0 10px 0;
   text-shadow: 2px 2px #000;
 `
 
@@ -184,8 +184,8 @@ export default function WalletConnect({ onConnect, onDisconnect }: WalletConnect
   return (
     <WalletContainer>
       <Title>Connect Wallet</Title>
-      <p style={{ color: 'white', textAlign: 'center', margin: '0 0 15px 0' }}>
-        Connect your wallet to play Base Stack and earn rewards!
+      <p style={{ color: 'white', textAlign: 'center', margin: '0 0 15px 0', fontSize: '16px' }}>
+        Connect wallet to play & earn rewards!
       </p>
       <ConnectButton onClick={handleConnect}>
         Connect Wallet

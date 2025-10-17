@@ -214,69 +214,72 @@ const Menu = styled.div`
   width: 100%;
   height: 100%;
   display: flex;
-  gap: 0.5rem;
+  gap: 0.3rem;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   color: white;
+  padding: 10px;
+  box-sizing: border-box;
 `
 
 const GameTitle = styled.h1`
   font-family: "Venite Adoremus", "Bangers", cursive;
-  font-size: 56px;
+  font-size: 48px;
   color: white;
-  text-shadow: 6px 6px #0b0c1a, -3px -3px #000;
+  text-shadow: 5px 5px #0b0c1a, -2px -2px #000;
   letter-spacing: 1px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: 0 0 14px 0;
+  margin: 0 0 12px 0;
 `
 
 const StartButton = styled.button`
-  padding: 15px 30px;
+  padding: 12px 24px;
   background: #0052FF;
   color: white;
-  border: 6px solid #0b0c1a;
+  border: 5px solid #0b0c1a;
   border-radius: 12px;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: bold;
   text-transform: uppercase;
   cursor: pointer;
   text-shadow: 3px 3px #0b0c1a;
-  box-shadow: 6px 6px 0 #000;
-  transform: rotate(-3deg);
+  box-shadow: 5px 5px 0 #000;
+  transform: rotate(-2deg);
   transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
 
   &:hover {
     background: #0066FF;
     transform: rotate(0deg);
-    box-shadow: 8px 8px 0 #000, 0 0 15px rgba(0, 82, 255, 0.75);
+    box-shadow: 7px 7px 0 #000, 0 0 15px rgba(0, 82, 255, 0.75);
   }
 `
 
 const Rules = styled.div`
-  width: 80%;
+  width: 85%;
   background: #0b0c1a;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 4px solid #0052FF;
   border-radius: 12px;
-  box-shadow: 0 0 15px #000;
-  font-size: 15px;
+  box-shadow: 0 0 12px #000;
+  font-size: 14px;
   text-align: left;
-  margin-top: 16px;
+  margin-top: 10px;
 
   h3 {
-    margin: 0 0 10px 0;
+    margin: 0 0 8px 0;
     font-family: "Venite Adoremus", "Bangers", cursive;
-    font-size: 24px;
+    font-size: 20px;
     text-shadow: 2px 2px #000;
     color: #d0d4d8;
-    letter-spacing: 2px;
+    letter-spacing: 1px;
   }
 
   p {
-    margin: 5px 0;
+    margin: 4px 0;
+    font-size: 14px;
   }
 `
 
@@ -316,6 +319,7 @@ export default function CryptoPuzzle() {
   const trioSoundRef = useRef<HTMLAudioElement | null>(null)
   const victorySoundRef = useRef<HTMLAudioElement | null>(null)
   const currentTrackIndexRef = useRef<number>(-1)
+  const isSelectingRef = useRef<boolean>(false)
 
   // Audio functions
   const playAudio = useCallback((audioElement: HTMLAudioElement | null, volume: number) => {
@@ -774,52 +778,313 @@ export default function CryptoPuzzle() {
 
 
   const selectTile = useCallback((tile: Tile) => {
-    // Avoid double selection of the same tile
-    if (gameState.selectedTileId === tile.id) {
+    // Prevent rapid taps and double selection
+    if (isSelectingRef.current || gameState.selectedTileId === tile.id) {
       return
     }
 
     // Verify that the tile is free and selectable
     if (!tile.free) return
 
-    // Process selection immediately
+    // Set selection flag to prevent rapid taps
+    isSelectingRef.current = true
+
+    // Atomic operation - do everything in one state update
     setGameState(prev => {
-      if (prev.collectedTiles.length < 5) {
-        const newTiles = prev.tiles.filter(t => t.id !== tile.id)
-        const newCollectedTiles = [...prev.collectedTiles, tile]
-        
-        // Update tile status after removing a tile
-        setTimeout(() => {
-          updateTileStatus(newTiles, newCollectedTiles)
-        }, 0)
-        
-        const newState = {
-          ...prev,
-          tiles: newTiles,
-          collectedTiles: newCollectedTiles,
-          moves: prev.moves + 1,
-          selectedTileId: null,
-        }
-        
-        // Check for trio after adding tile
-        setTimeout(() => {
-          checkTrio()
-        }, 0)
-        
-        // Check for loss if collected area is full
-        if (newCollectedTiles.length === 5) {
-          setTimeout(() => {
-            checkCollectedForLoss()
-          }, 0)
-        }
-        
-        return newState
+      // Check if tile still exists and is free (prevent race conditions)
+      const currentTile = prev.tiles.find(t => t.id === tile.id)
+      if (!currentTile || !currentTile.free) {
+        isSelectingRef.current = false
+        return prev
       }
       
-      return prev
-    })
-  }, [gameState.selectedTileId, updateTileStatus])
+      // Check if collected area is full and no trio can be made
+      if (prev.collectedTiles.length >= 5) {
+        // Check if adding this tile would create a trio
+        const wouldCreateTrio = prev.collectedTiles.filter(t => t.imageUrl === tile.imageUrl).length >= 2
+        if (!wouldCreateTrio) {
+          isSelectingRef.current = false
+          return prev
+        }
+      }
 
+      const newTiles = prev.tiles.filter(t => t.id !== tile.id)
+      const newCollectedTiles = [...prev.collectedTiles, tile]
+      
+      // Update tile status immediately (synchronously)
+      const updatedTiles = newTiles.map(t => {
+        const tW = 60
+        const tH = 75
+        const layerOffset = t.layerOffset || 25
+        const tileRect = {
+          left: t.x * t.xSpacing + t.offsetX,
+          top: t.y * t.ySpacing + t.offsetY + t.z * layerOffset,
+          right: t.x * t.xSpacing + t.offsetX + tW,
+          bottom: t.y * t.ySpacing + t.offsetY + t.z * layerOffset + tH,
+        }
+        
+        let isFree = true
+        for (const otherTile of newTiles) {
+          if (otherTile.id !== t.id && otherTile.z > t.z) {
+            const otherLayerOffset = otherTile.layerOffset || 25
+            const otherRect = {
+              left: otherTile.x * otherTile.xSpacing + otherTile.offsetX,
+              top: otherTile.y * otherTile.ySpacing + otherTile.offsetY + otherTile.z * otherLayerOffset,
+              right: otherTile.x * otherTile.xSpacing + otherTile.offsetX + tW,
+              bottom: otherTile.y * otherTile.ySpacing + otherTile.offsetY + otherTile.z * otherLayerOffset + tH,
+            }
+            
+            if (tileRect.left < otherRect.right && tileRect.right > otherRect.left &&
+                tileRect.top < otherRect.bottom && tileRect.bottom > otherRect.top) {
+              isFree = false
+              break
+            }
+          }
+        }
+        
+        return { ...t, free: isFree }
+      })
+      
+      const newState = {
+        ...prev,
+        tiles: updatedTiles,
+        collectedTiles: newCollectedTiles,
+        moves: prev.moves + 1,
+        selectedTileId: tile.id,
+      }
+      
+      // Check for trio immediately
+      const imageCounts: { [key: string]: number } = {}
+      newCollectedTiles.forEach(tile => {
+        imageCounts[tile.imageUrl] = (imageCounts[tile.imageUrl] || 0) + 1
+      })
+
+      let hasTrio = false
+      for (const [imageUrl, count] of Object.entries(imageCounts)) {
+        if (count >= 3) {
+          hasTrio = true
+          break
+        }
+      }
+      
+      // If trio found, handle it immediately
+      if (hasTrio) {
+        const trioImageUrl = Object.keys(imageCounts).find(url => imageCounts[url] >= 3)
+        if (trioImageUrl) {
+          const trioToRemove = newCollectedTiles.filter(t => t.imageUrl === trioImageUrl).slice(0, 3)
+          const remainingCollected = newCollectedTiles.filter(t => !trioToRemove.includes(t))
+          
+          // Add trio animation
+          const animatingIds = trioToRemove.map(t => t.id)
+          
+          // Play trio sound
+          if (!prev.isMuted && trioSoundRef.current) {
+            playAudio(trioSoundRef.current, 0.5)
+          }
+          
+          // Calculate score for trio
+          const trioScore = 100 + (prev.level - 1) * 50
+          
+          // Schedule animation cleanup
+          setTimeout(() => {
+            setGameState(currentState => ({
+              ...currentState,
+              animatingTiles: [],
+            }))
+          }, 800)
+          
+          // Check for victory after trio removal
+          if (updatedTiles.length === 0 && remainingCollected.length === 0) {
+            const maxTime = BASE_TIME + (prev.level - 1) * 10
+            const remainingTime = prev.time
+            const finalVictoryScore = prev.score + trioScore + 1500 + remainingTime * 75 + (prev.level - 1) * 200
+            
+            if (typeof window !== 'undefined' && (window as any).FarcadeSDK) {
+              (window as any).FarcadeSDK.singlePlayer.actions.hapticFeedback()
+            }
+            
+            // Play victory sound
+            if (!prev.isMuted && victorySoundRef.current) {
+              playAudio(victorySoundRef.current, 0.7)
+            }
+            
+            // Stop the timer when victory is achieved
+            if (timerRef.current) {
+              clearInterval(timerRef.current)
+              timerRef.current = null
+            }
+            
+            return {
+              ...newState,
+              collectedTiles: remainingCollected,
+              score: finalVictoryScore,
+              showVictory: true,
+              gameStarted: false,
+              animatingTiles: animatingIds,
+            }
+          }
+          
+          return {
+            ...newState,
+            collectedTiles: remainingCollected,
+            score: prev.score + trioScore,
+            animatingTiles: animatingIds,
+          }
+        }
+      }
+      
+      // Check for victory condition - all tiles cleared and no collected tiles
+      if (updatedTiles.length === 0 && newCollectedTiles.length === 0) {
+        const maxTime = BASE_TIME + (prev.level - 1) * 10
+        const remainingTime = prev.time
+        const victoryScore = prev.score + 1500 + remainingTime * 75 + (prev.level - 1) * 200
+        
+        if (typeof window !== 'undefined' && (window as any).FarcadeSDK) {
+          (window as any).FarcadeSDK.singlePlayer.actions.hapticFeedback()
+        }
+        
+        // Play victory sound
+        if (!prev.isMuted && victorySoundRef.current) {
+          playAudio(victorySoundRef.current, 0.7)
+        }
+        
+        // Stop the timer when victory is achieved
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+          timerRef.current = null
+        }
+        
+        return {
+          ...newState,
+          score: victoryScore,
+          showVictory: true,
+          gameStarted: false,
+        }
+      }
+      
+      // Check for loss if collected area is full
+      if (newCollectedTiles.length >= 5) {
+        // Check if any trio can be made with current collected tiles
+        const imageCounts: { [key: string]: number } = {}
+        newCollectedTiles.forEach(tile => {
+          imageCounts[tile.imageUrl] = (imageCounts[tile.imageUrl] || 0) + 1
+        })
+        
+        const hasTrioInCollected = Object.values(imageCounts).some(count => count >= 3)
+        
+        // Check if any trio can be made from board tiles
+        let canMakeTrioFromBoard = false
+        
+        // Check if any board tile can form a trio with collected tiles
+        for (const boardTile of updatedTiles) {
+          const sameImageInCollected = newCollectedTiles.filter(t => t.imageUrl === boardTile.imageUrl).length
+          if (sameImageInCollected >= 2) {
+            canMakeTrioFromBoard = true
+            break
+          }
+        }
+        
+        // Check if any two board tiles can form a trio with collected tiles
+        if (!canMakeTrioFromBoard) {
+          for (let i = 0; i < updatedTiles.length; i++) {
+            for (let j = i + 1; j < updatedTiles.length; j++) {
+              if (updatedTiles[i].imageUrl === updatedTiles[j].imageUrl) {
+                const sameImageInCollected = newCollectedTiles.filter(t => t.imageUrl === updatedTiles[i].imageUrl).length
+                if (sameImageInCollected >= 1) {
+                  canMakeTrioFromBoard = true
+                  break
+                }
+              }
+            }
+            if (canMakeTrioFromBoard) break
+          }
+        }
+        
+        if (!hasTrioInCollected && !canMakeTrioFromBoard) {
+          // No moves possible - lose a life and restart level
+          const newLives = prev.lives - 1
+          
+          if (newLives <= 0) {
+            // Game over - no lives left
+            return {
+              ...newState,
+              gameStarted: false,
+              showGameOver: true,
+              finalScore: prev.score,
+            }
+          } else {
+            // Lose a life and restart level
+            return {
+              ...newState,
+              lives: newLives,
+              gameStarted: false,
+              showLoseScreen: true,
+              loseMessage: 'No moves left!',
+            }
+          }
+        }
+      }
+      
+      // General check for no moves possible (even when collected area is not full)
+      const freeTiles = updatedTiles.filter(t => t.free)
+      if (freeTiles.length > 0) {
+        let hasValidMove = false
+        
+        // Check if any free tile can be selected
+        for (const freeTile of freeTiles) {
+          // If collected area is not full, any free tile can be selected
+          if (newCollectedTiles.length < 5) {
+            hasValidMove = true
+            break
+          }
+          
+          // If collected area is full, check if this tile would create a trio
+          const sameImageInCollected = newCollectedTiles.filter(t => t.imageUrl === freeTile.imageUrl).length
+          if (sameImageInCollected >= 2) {
+            hasValidMove = true
+            break
+          }
+        }
+        
+        if (!hasValidMove) {
+          // No moves possible - lose a life and restart level
+          const newLives = prev.lives - 1
+          
+          if (newLives <= 0) {
+            // Game over - no lives left
+            return {
+              ...newState,
+              gameStarted: false,
+              showGameOver: true,
+              finalScore: prev.score,
+            }
+          } else {
+            // Lose a life and restart level
+            return {
+              ...newState,
+              lives: newLives,
+              gameStarted: false,
+              showLoseScreen: true,
+              loseMessage: 'No moves left!',
+            }
+          }
+        }
+      }
+      
+      return newState
+    })
+
+    // Clear selection flag and selected tile ID after a short delay
+    setTimeout(() => {
+      isSelectingRef.current = false
+      setGameState(prev => ({
+        ...prev,
+        selectedTileId: null
+      }))
+    }, 150)
+  }, [gameState.selectedTileId])
+
+  // Legacy checkTrio function - kept for compatibility but not used in main flow
   const checkTrio = useCallback(() => {
     setGameState(prev => {
       const imageCounts: { [key: string]: number } = {}
@@ -854,6 +1119,12 @@ export default function CryptoPuzzle() {
               playAudio(victorySoundRef.current, 0.7)
             }
             
+            // Stop the timer when victory is achieved
+            if (timerRef.current) {
+              clearInterval(timerRef.current)
+              timerRef.current = null
+            }
+            
             return {
               ...prev,
               collectedTiles: remainingCollected,
@@ -885,6 +1156,12 @@ export default function CryptoPuzzle() {
                 
                 if (typeof window !== 'undefined' && (window as any).FarcadeSDK) {
                   (window as any).FarcadeSDK.singlePlayer.actions.hapticFeedback()
+                }
+                
+                // Stop the timer when victory is achieved
+                if (timerRef.current) {
+                  clearInterval(timerRef.current)
+                  timerRef.current = null
                 }
                 
                 return {
@@ -1139,7 +1416,9 @@ export default function CryptoPuzzle() {
   }, [])
 
   const handleSubmitScore = useCallback(() => {
-    console.log("🔍 Submitting score:", gameState.score)
+    // Use final score if game is over, otherwise use current score
+    const scoreToSubmit = gameState.showGameOver ? gameState.finalScore : gameState.score
+    console.log("🔍 Submitting score:", scoreToSubmit)
     console.log("🔍 Farcaster context:", context?.user)
     
     // Get Farcaster user data from context
@@ -1150,8 +1429,8 @@ export default function CryptoPuzzle() {
     console.log("🔍 Farcaster data - Username:", farcasterUsername, "FID:", farcasterFid, "PFP:", farcasterPfp)
     
     // Call setScore with user data - it will try addScore first, then setScore if needed
-    setScore(gameState.score, farcasterUsername, farcasterFid, farcasterPfp)
-  }, [gameState.score, context, setScore])
+    setScore(scoreToSubmit, farcasterUsername, farcasterFid, farcasterPfp)
+  }, [gameState.score, gameState.finalScore, gameState.showGameOver, context, setScore])
 
   const nextLevel = useCallback(() => {
     setGameState(prev => {
@@ -1241,7 +1520,7 @@ export default function CryptoPuzzle() {
               <span>Stack</span>
             </GameTitle>
             <StartButton onClick={startGame}>START</StartButton>
-            <StartButton onClick={handleShowLeaderboard} style={{ background: '#8b5cf6', fontSize: '20px', padding: '12px 24px' }}>
+            <StartButton onClick={handleShowLeaderboard} style={{ background: '#8b5cf6', fontSize: '18px', padding: '10px 20px' }}>
               Leaderboard
             </StartButton>
             <WalletConnect />
@@ -1250,12 +1529,16 @@ export default function CryptoPuzzle() {
                <p>🎯 Match 3 same cards to clear them</p>
                <p>📱 Tap cards on top (not blocked)</p>
                <p>⏰ Beat the timer before you run out of moves</p>
-               <p>💙 You have 3 lives - lose them all = game over</p>
+               <p>❤️ You have 3 lives - lose them all = game over</p>
                <p>🕐 Clock = Freeze time once</p>
                <p>🔑 Key = Auto-match best trio once</p>
             </Rules>
           </Menu>
         </GameWrapper>
+        
+        {gameState.showLeaderboard && (
+          <GameLeaderboard onClose={handleCloseLeaderboard} />
+        )}
       </GameContainer>
     )
   }
@@ -1305,16 +1588,33 @@ export default function CryptoPuzzle() {
         )}
 
         {gameState.showGameOver && (
-          <LoseScreen>
+          <VictoryScreen>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <VictoryTitle>Game Over</VictoryTitle>
               <StatsBox>
                 <div>Final Score: <span>{gameState.finalScore}</span></div>
                 <div>Level Reached: <span>{gameState.level}</span></div>
               </StatsBox>
-              <StartButton onClick={resetGame}>Play Again</StartButton>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', maxWidth: '300px' }}>
+                <StartButton onClick={resetGame}>Play Again</StartButton>
+                <StartButton 
+                  onClick={handleSubmitScore} 
+                  disabled={isSubmittingScore || isScoreSubmitted}
+                  style={{ 
+                    background: isScoreSubmitted ? '#10b981' : isSubmittingScore ? '#6b7280' : '#0052FF' 
+                  }}
+                >
+                  {isSubmittingScore ? 'Submitting...' : isScoreSubmitted ? 'Score Saved!' : 'Submit Score'}
+                </StartButton>
+                <StartButton onClick={handleShowLeaderboard} style={{ background: '#8b5cf6' }}>
+                  View Leaderboard
+                </StartButton>
+                <StartButton onClick={handleShowScoreShare} style={{ background: '#f59e0b' }}>
+                  Share Score
+                </StartButton>
+              </div>
             </div>
-          </LoseScreen>
+          </VictoryScreen>
         )}
         {gameState.gameStarted && (
           <GameScreen>
@@ -1352,7 +1652,7 @@ export default function CryptoPuzzle() {
         
         {gameState.showScoreShare && (
           <ScoreShare
-            score={gameState.score}
+            score={gameState.showGameOver ? gameState.finalScore : gameState.score}
             level={gameState.level}
             time={BASE_TIME + (gameState.level - 1) * 10 - gameState.time}
             onClose={handleCloseScoreShare}
@@ -1360,7 +1660,6 @@ export default function CryptoPuzzle() {
         )}
       </GameWrapper>
       
-      {/* Modals - Outside GameWrapper so they work on menu and game screens */}
       {gameState.showLeaderboard && (
         <GameLeaderboard onClose={handleCloseLeaderboard} />
       )}
