@@ -12,8 +12,8 @@ export async function GET() {
       "splashImageUrl": "https://farcaster-base-cardgame-gilt.vercel.app/splash.png",
       "splashBackgroundColor": "#ffffff",
       "webhookUrl": "https://farcaster-base-cardgame-gilt.vercel.app/api/webhook",
-      "subtitle": "Match 3 same cards to clear them all",
-      "description": "Match 3 same cards to clear them all",
+      "subtitle": "Match 3 same cards",
+      "description": "Match 3 same cards",
       "primaryCategory": "games"
     },
     "accountAssociation": {
