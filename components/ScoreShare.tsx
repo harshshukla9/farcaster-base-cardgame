@@ -125,7 +125,7 @@ interface ScoreShareProps {
 }
 
 export default function ScoreShare({ score, level, time, onClose }: ScoreShareProps) {
-  const { context } = useFrame()
+  const { context, actions } = useFrame()
   const [isSharing, setIsSharing] = useState(false)
   const [customMessage, setCustomMessage] = useState('')
   const [isSuccess, setIsSuccess] = useState(false)
@@ -137,18 +137,16 @@ export default function ScoreShare({ score, level, time, onClose }: ScoreSharePr
   const shareMessage = customMessage.trim() || defaultMessage
 
   const handleShare = async () => {
-    if (!context?.client?.cast) {
+    if (!actions?.composeCast) {
       alert('Cast sharing not available in this environment')
       return
     }
 
     setIsSharing(true)
     try {
-      await context.client.cast({
+      await actions.composeCast({
         text: shareMessage,
-        embeds: [{
-          url: window.location.href,
-        }],
+        embeds: [window.location.origin]
       })
       setIsSuccess(true)
     } catch (error) {
