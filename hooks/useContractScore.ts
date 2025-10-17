@@ -17,8 +17,13 @@ interface ContractScoreState {
 export function useContractScore() {
   const { address, isConnected } = useAccount()
   const { writeContract, data: hash, isPending, error } = useWriteContract()
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+  const { isLoading: isConfirming, isSuccess: isConfirmed, error: receiptError } = useWaitForTransactionReceipt({
     hash,
+    query: {
+      enabled: !!hash, // Only enable when we have a hash
+      retry: 3, // Retry up to 3 times
+      retryDelay: 1000, // Wait 1 second between retries
+    }
   })
 
   const [state, setState] = useState<ContractScoreState>({
@@ -29,23 +34,25 @@ export function useContractScore() {
     txHash: null,
   })
 
+  // Fallback timeout for transaction confirmation
+  const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null)
+
   const setScore = useCallback(async (score: number, username?: string, fid?: number, pfp?: string) => {
     if (!isConnected || !address) {
-      console.log("🔍 Cannot save score - wallet not connected")
       return
     }
 
+    // Reset state before starting
     setState(prev => ({
       ...prev,
-      isSubmitting: true,
+      isSubmitting: false,
       isError: false,
       error: null,
-      isSuccess: false
+      isSuccess: false,
+      txHash: null
     }))
 
     try {
-      console.log("🔍 Saving score to contract:", score)
-      
       // Check if user exists first using hasProfile
       const publicClient = createPublicClient({
         chain: base,
@@ -59,11 +66,8 @@ export function useContractScore() {
         args: [address],
       }) as boolean
       
-      console.log("🔍 User exists:", userExists)
-      
       if (userExists) {
         // User exists - use addScore to add to their current score
-        console.log("🔍 Adding score for existing user")
         await writeContract({
           address: contractConfig.contractAddress as `0x${string}`,
           abi: contractConfig.abi,
@@ -71,11 +75,8 @@ export function useContractScore() {
           args: [BigInt(score)],
           chainId: base.id,
         })
-        console.log("🔍 Score added successfully (existing user)")
       } else {
         // User doesn't exist - create profile with setScore
-        console.log("🔍 Creating new user profile with setScore")
-        
         const defaultUsername = username || "Anonymous"
         const defaultFid = fid || 0
         const defaultPfp = pfp || ""
@@ -87,10 +88,9 @@ export function useContractScore() {
           args: [BigInt(score), defaultUsername, BigInt(defaultFid), defaultPfp],
           chainId: base.id,
         })
-        console.log("🔍 Profile created and score set successfully (new user)")
       }
     } catch (err: any) {
-      console.error("🔍 Failed to save score:", err)
+      console.error("Failed to save score:", err)
       setState(prev => ({
         ...prev,
         isSubmitting: false,
@@ -105,30 +105,84 @@ export function useContractScore() {
 
   // Update state based on transaction status
   useEffect(() => {
-    if (isPending) {
-      setState(prev => ({
-        ...prev,
-        isSubmitting: true,
-        txHash: hash || null
-      }))
-    } else if (isConfirmed) {
-      setState(prev => ({
-        ...prev,
-        isSubmitting: false,
-        isSuccess: true,
-        txHash: hash || null
-      }))
-    } else if (error) {
-      setState(prev => ({
-        ...prev,
-        isSubmitting: false,
-        isError: true,
-        error: error.message || 'Transaction failed'
-      }))
+    
+    // Clear any existing timeout
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+      setTimeoutId(null)
     }
-  }, [isPending, isConfirmed, error, hash])
+    
+    if (isPending || isConfirming) {
+      setState(prev => {
+        // Only update if state actually needs to change
+        if (prev.isSubmitting && prev.txHash === hash) {
+          return prev
+        }
+        return {
+          ...prev,
+          isSubmitting: true,
+          isSuccess: false,
+          isError: false,
+          error: null,
+          txHash: hash || null
+        }
+      })
+      
+      // Set a fallback timeout for 5 seconds (Base is fast)
+      if (hash && !isConfirmed) {
+        const fallbackTimeout = setTimeout(() => {
+          setState(prev => ({
+            ...prev,
+            isSubmitting: false,
+            isSuccess: true,
+            isError: false,
+            error: null,
+            txHash: hash
+          }))
+        }, 5000) // 5 seconds
+        setTimeoutId(fallbackTimeout)
+      }
+    } else if (isConfirmed) {
+      setState(prev => {
+        // Only update if state actually needs to change
+        if (prev.isSuccess && prev.txHash === hash) {
+          return prev
+        }
+        return {
+          ...prev,
+          isSubmitting: false,
+          isSuccess: true,
+          isError: false,
+          error: null,
+          txHash: hash || null
+        }
+      })
+    } else if (error || receiptError) {
+      const errorMessage = error?.message || receiptError?.message || 'Transaction failed'
+      setState(prev => {
+        // Only update if state actually needs to change
+        if (prev.isError && prev.error === errorMessage) {
+          return prev
+        }
+        return {
+          ...prev,
+          isSubmitting: false,
+          isSuccess: false,
+          isError: true,
+          error: errorMessage,
+          txHash: hash || null
+        }
+      })
+    }
+  }, [isPending, isConfirmed, isConfirming, error, receiptError, hash])
 
   const reset = useCallback(() => {
+    // Clear any pending timeout
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+      setTimeoutId(null)
+    }
+    
     setState({
       isSubmitting: false,
       isSuccess: false,
@@ -136,7 +190,16 @@ export function useContractScore() {
       error: null,
       txHash: null,
     })
-  }, [])
+  }, [timeoutId])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }
+  }, [timeoutId])
 
   return {
     setScore,

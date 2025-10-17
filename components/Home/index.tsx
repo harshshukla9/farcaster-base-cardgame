@@ -266,7 +266,7 @@ const Rules = styled.div`
   box-shadow: 0 0 12px #000;
   font-size: 14px;
   text-align: left;
-  margin-top: 10px;
+  margin-top: 50px;
 
   h3 {
     margin: 0 0 8px 0;
@@ -311,7 +311,7 @@ export default function CryptoPuzzle() {
   })
 
   // Add contract score hook
-  const { setScore, isSubmitting: isSubmittingScore, isSuccess: isScoreSubmitted } = useContractScore()
+  const { setScore, isSubmitting: isSubmittingScore, isSuccess: isScoreSubmitted, reset: resetScoreSubmission } = useContractScore()
   const { context } = useFrame()
 
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -409,6 +409,9 @@ export default function CryptoPuzzle() {
   }, [queueNextBackgroundTrack])
 
   const startGame = useCallback(() => {
+    // Reset score submission state when starting a new game
+    resetScoreSubmission()
+    
     setGameState(prev => ({
       ...prev,
       gameStarted: true,
@@ -433,7 +436,7 @@ export default function CryptoPuzzle() {
     if (typeof window !== 'undefined' && (window as any).FarcadeSDK) {
       (window as any).FarcadeSDK.singlePlayer.actions.ready()
     }
-  }, [gameState.isMuted, queueNextBackgroundTrack])
+  }, [gameState.isMuted, queueNextBackgroundTrack, resetScoreSubmission])
 
   const resetGame = useCallback(() => {
     if (timerRef.current) {
@@ -446,6 +449,9 @@ export default function CryptoPuzzle() {
       backgroundMusicRef.current.currentTime = 0
       queueNextBackgroundTrack(true)
     }
+    
+    // Reset score submission state
+    resetScoreSubmission()
     
     setGameState(prev => ({
       ...prev,
@@ -470,7 +476,7 @@ export default function CryptoPuzzle() {
     if (typeof window !== 'undefined' && (window as any).FarcadeSDK) {
       (window as any).FarcadeSDK.singlePlayer.actions.ready()
     }
-  }, [pauseAudio, queueNextBackgroundTrack])
+  }, [pauseAudio, queueNextBackgroundTrack, resetScoreSubmission])
 
   const generateBoard = useCallback((currentLevel: number) => {
     const config = getLevelConfig(currentLevel)
@@ -1418,15 +1424,11 @@ export default function CryptoPuzzle() {
   const handleSubmitScore = useCallback(() => {
     // Use final score if game is over, otherwise use current score
     const scoreToSubmit = gameState.showGameOver ? gameState.finalScore : gameState.score
-    console.log("🔍 Submitting score:", scoreToSubmit)
-    console.log("🔍 Farcaster context:", context?.user)
     
     // Get Farcaster user data from context
     const farcasterUsername = context?.user?.username || "Anonymous"
     const farcasterFid = context?.user?.fid || 0
     const farcasterPfp = context?.user?.pfpUrl || ""
-    
-    console.log("🔍 Farcaster data - Username:", farcasterUsername, "FID:", farcasterFid, "PFP:", farcasterPfp)
     
     // Call setScore with user data - it will try addScore first, then setScore if needed
     setScore(scoreToSubmit, farcasterUsername, farcasterFid, farcasterPfp)
@@ -1514,6 +1516,7 @@ export default function CryptoPuzzle() {
     return (
       <GameContainer>
         <GameWrapper>
+          <WalletConnect isTopNav={true} />
           <Menu>
             <GameTitle>
               <span>Base</span>
@@ -1523,7 +1526,6 @@ export default function CryptoPuzzle() {
             <StartButton onClick={handleShowLeaderboard} style={{ background: '#8b5cf6', fontSize: '18px', padding: '10px 20px' }}>
               Leaderboard
             </StartButton>
-            <WalletConnect />
             <Rules>
             <h3>How to Play:</h3>
                <p>🎯 Match 3 same cards to clear them</p>
