@@ -50,6 +50,7 @@ const TileElement = styled.div<{
   transform: translateZ(${props => props.z * props.layerOffset}px);
   z-index: ${props => 100 + props.z};
   transition: all 0.2s ease;
+  
 
   &:hover {
     ${props => props.isFree && !props.isProcessing && `
